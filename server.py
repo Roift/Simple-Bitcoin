@@ -4,7 +4,7 @@ from socket import *
 serverPort = 12000
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 serverSocket.bind(('', serverPort))
-print('The server is ready to receive')
+print('The server is ready to receive.')
 
 # define list to store user information
 users = [
@@ -39,10 +39,13 @@ while True:
     user = findUser(username)
 
     if command == 'LOGIN':
+        print('Authentication request received...')
         if not user or user['password'] != password: #if user or password doesn't match, send authentication failure message
+            print ('Authentication failed!')
             serverSocket.sendto('Invalid username or password.'.encode(), clientAddress)
             continue
 
         # respond with user's balance and confirmed transactions on authentication success
+        print ('Authentication success!')
         response = f'Login successful!\n Balance: {user["balance"]} BTC\n Transactions: {transactions}'
         serverSocket.sendto(response.encode(), clientAddress)
