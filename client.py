@@ -40,13 +40,13 @@ def generate_transaction_id(username):
     return transaction_id
 
 def send_temporary_transaction(username, transaction):
-    serverName = 'localhost'
-    serverPort = 12000
-    clientSocket = socket(AF_INET, SOCK_DGRAM)
+    server_name = 'localhost'
+    server_port = 12000
+    client_socket = socket(AF_INET, SOCK_DGRAM)
     transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]} status={transaction["status"]}'  # Include status here
-    clientSocket.sendto(transaction_str.encode(), (serverName, serverPort))
-    response, _ = clientSocket.recvfrom(2048)
-    clientSocket.close()
+    client_socket.sendto(transaction_str.encode(), (server_name, server_port))
+    response, _ = client_socket.recvfrom(2048)
+    client_socket.close()
     response_parts = response.decode().split()
     if len(response_parts) >= 2 and response_parts[0] == 'TX' and response_parts[1] in ['confirmed.', 'rejected.']:
         if response_parts[1] == 'confirmed.':
@@ -57,21 +57,21 @@ def send_temporary_transaction(username, transaction):
 
 # Authentication code, client uses UDP as per assignment requirements
 def authenticate(username, password):
-    serverName = 'localhost'
-    serverPort = 12000
-    clientSocket = socket(AF_INET, SOCK_DGRAM)
-    clientSocket.sendto(f'LOGIN {username} {password}'.encode(), (serverName, serverPort))
-    response, _ = clientSocket.recvfrom(2048)
-    clientSocket.close()
+    server_name = 'localhost'
+    server_port = 12000
+    client_socket = socket(AF_INET, SOCK_DGRAM)
+    client_socket.sendto(f'LOGIN {username} {password}'.encode(), (server_name, server_port))
+    response, _ = client_socket.recvfrom(2048)
+    client_socket.close()
     return response.decode()
 
 def validate_transaction(username, amount):
-    serverName = 'localhost'
-    serverPort = 12000
-    clientSocket = socket(AF_INET, SOCK_DGRAM)
-    clientSocket.sendto(f'VALIDATE {username} {amount}'.encode(), (serverName, serverPort))
-    response, _ = clientSocket.recvfrom(2048)
-    clientSocket.close()
+    server_name = 'localhost'
+    server_port = 12000
+    client_socket = socket(AF_INET, SOCK_DGRAM)
+    client_socket.sendto(f'VALIDATE {username} {amount}'.encode(), (server_name, server_port))
+    response, _ = client_socket.recvfrom(2048)
+    client_socket.close()
     return response.decode()
 
 def update_transaction_status(tx_id, status):
@@ -80,22 +80,26 @@ def update_transaction_status(tx_id, status):
             tx['status'] = status
             break
 
+# Modify the fetch_transactions function to handle balance and transaction list separately
 def fetch_transactions(username):
-    serverName = 'localhost'
-    serverPort = 12000
-    clientSocket = socket(AF_INET, SOCK_DGRAM)
-    clientSocket.sendto(f'TX_LIST {username}'.encode(), (serverName, serverPort))
-    response, _ = clientSocket.recvfrom(2048)
-    clientSocket.close()
-    return response.decode()
+    server_name = 'localhost'
+    server_port = 12000
+    client_socket = socket(AF_INET, SOCK_DGRAM)
+    client_socket.sendto(f'TX_LIST {username}'.encode(), (server_name, server_port))
+    response, _ = client_socket.recvfrom(2048)
+    client_socket.close()
+    response_parts = response.decode().split('\n', 1)
+    balance = response_parts[0]
+    transaction_list_response = response_parts[1] if len(response_parts) > 1 else ""
+    return balance, transaction_list_response
 
-# Displays list of transactions for logged in user
 def display_transactions(transactions):
     print("Transactions:")
     if not transactions:
         print("No transactions found!")
     else:
-        print("TX ID | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status")
+        print("TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status")
+        print("-" * 68)  # Adding a line to separate header and data
         for tx in transactions:
             status = ''
             if tx['status'] == STATUS_TEMPORARY:
@@ -104,8 +108,17 @@ def display_transactions(transactions):
                 status = 'confirmed'
             elif tx['status'] == STATUS_REJECTED:
                 status = 'rejected'
-            print(f"{tx['tx_id']} | {tx['payer']} | {tx['amount']} | {tx['payee1']} | {tx['payment1']} | {tx.get('payee2', '')} | {tx.get('payment2', '')} | {status}")
 
+            tx_id = str(tx['tx_id']).ljust(6)
+            payer = tx['payer'].ljust(6)
+            amount = str(tx['amount']).ljust(7)
+            payee1 = tx['payee1'].ljust(7)
+            amount_received1 = str(tx.get('payment1', '')).ljust(7)
+            payee2 = str(tx.get('payee2', '')).ljust(7)
+            amount_received2 = str(tx.get('payment2', '')).ljust(7)
+            status = status.ljust(8)  # Ensure status is included as an integer
+
+            print(f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}")
 
 def main():
     while True:
@@ -130,7 +143,8 @@ def main():
                     print("Invalid choice. Please enter 1 or 2.")
 
     # Fetch and display transaction list from server
-    transaction_list_response = fetch_transactions(username)
+    balance, transaction_list_response = fetch_transactions(username)
+    print(f"\nBalance: {balance}")
     print("\nReceived transaction list from server:")
     print(transaction_list_response)
 
@@ -212,15 +226,14 @@ def main():
                 print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC.")
 
         elif choice == '2':
-            # Fetch and display transaction list from server
-            transaction_list_response = fetch_transactions(username)
+            # Fetching and displaying balance and transaction list
+            balance, transaction_list_response = fetch_transactions(username)
+            print(f"\nBalance: {balance}")
             print("\nReceived transaction list from server:")
             print(transaction_list_response)
-
         elif choice == '3':
             print("Exiting program.")
             break
-
         else:
             print("Invalid choice. Please enter 1, 2, or 3.")
 

@@ -1,9 +1,9 @@
 from socket import *
 
 # Server configuration
-serverPort = 12000
-serverSocket = socket(AF_INET, SOCK_DGRAM)
-serverSocket.bind(('', serverPort))
+server_port = 12000
+server_socket = socket(AF_INET, SOCK_DGRAM)
+server_socket.bind(('', server_port))
 print('The server is ready to receive.')
 
 # Define list to store user information
@@ -18,18 +18,18 @@ users = [
 transactions = []
 
 # Search for user
-def findUser(username):
+def find_user(username):
     for user in users:
         if user['username'] == username:
             return user
     return None
 
 # Process transaction
-def processTransaction(transaction):
+def process_transaction(transaction):
     payer = transaction['payer']
     amount = transaction['amount']
     payee1 = transaction['payee1']
-    user = findUser(payer)
+    user = find_user(payer)
 
     if not user or user['balance'] < amount:
         print(f'Received a transaction request from {payer}. Insufficient balance. Transaction rejected.')
@@ -37,7 +37,7 @@ def processTransaction(transaction):
 
     user['balance'] -= amount
 
-    payee = findUser(payee1)
+    payee = find_user(payee1)
     if payee:
         payee['balance'] += amount
 
@@ -50,7 +50,7 @@ def processTransaction(transaction):
 def process_temporary_transaction(transaction):
     payer = transaction['payer']
     amount = transaction['amount']
-    user = findUser(payer)
+    user = find_user(payer)
 
     if not user or user['balance'] < amount:
         print(f'Received a temporary transaction request from {payer}. Insufficient balance. Transaction rejected.')
@@ -64,20 +64,24 @@ def process_temporary_transaction(transaction):
     transaction['status'] = 'temporary'
     return f'TX {transaction["tx_id"]} temporary transaction received.'
 
-
 def get_user_transactions(username):
     user_transactions = []
+    user_balance = None
+    for user in users:
+        if user['username'] == username:
+            user_balance = user['balance']
+            break
     for transaction in transactions:
         if transaction['payer'] == username or transaction['payee1'] == username or transaction.get('payee2') == username:
             user_transactions.append(transaction)
-    return user_transactions
+    return user_balance, user_transactions
 
 while True:
-    message, clientAddress = serverSocket.recvfrom(2048)
+    message, client_address = server_socket.recvfrom(2048)
     message_parts = message.decode().split()
 
     if len(message_parts) < 2:
-        serverSocket.sendto('Invalid request format.'.encode(), clientAddress)
+        server_socket.sendto('Invalid request format.'.encode(), client_address)
         continue
 
     command = message_parts[0].upper()
@@ -85,27 +89,27 @@ while True:
     if command == 'LOGIN':
         username = message_parts[1]
         password = message_parts[2]
-        user = findUser(username)
+        user = find_user(username)
         
         if not user or user['password'] != password:
             print(f'Authentication request received from {username}. Authentication failed.')
-            serverSocket.sendto('Invalid username or password.'.encode(), clientAddress)
+            server_socket.sendto('Invalid username or password.'.encode(), client_address)
             continue
 
         response = f'Login successful!\nBalance: {int(user["balance"])}'
         print(f'{username} is authenticated.')
-        serverSocket.sendto(response.encode(), clientAddress)
+        server_socket.sendto(response.encode(), client_address)
 
     elif command == 'VALIDATE':
         username = message_parts[1]
         amount = float(message_parts[2])
-        user = findUser(username)
+        user = find_user(username)
         if not user or user['balance'] < amount:
             print(f'Validation request received from {username}. Transaction amount exceeds balance. Validation failed.')
-            serverSocket.sendto('Transaction amount exceeds balance.'.encode(), clientAddress)
+            server_socket.sendto('Transaction amount exceeds balance.'.encode(), client_address)
         else:
             print(f'Validation request received from {username}. Transaction amount is valid.')
-            serverSocket.sendto('Transaction amount is valid.'.encode(), clientAddress)
+            server_socket.sendto('Transaction amount is valid.'.encode(), client_address)
 
     elif command == 'TX':
         transaction = {}
@@ -115,13 +119,13 @@ while True:
                 transaction[key] = value
 
         if 'tx_id' not in transaction:
-            serverSocket.sendto('Transaction ID is missing.'.encode(), clientAddress)
+            server_socket.sendto('Transaction ID is missing.'.encode(), client_address)
             continue
 
         try:
             tx_id = int(transaction['tx_id'])
         except ValueError:
-            serverSocket.sendto('Invalid transaction ID.'.encode(), clientAddress)
+            server_socket.sendto('Invalid transaction ID.'.encode(), client_address)
             continue
 
         amount = float(transaction['amount'])
@@ -133,10 +137,10 @@ while True:
         status = transaction['status'] if 'status' in transaction else 'temporary'  # Set status here if not received from client
 
         if amount_to_payee1 is not None and (amount_to_payee1 < 0 or amount_to_payee1 > amount):
-            serverSocket.sendto('Invalid payment amount for Payee1.'.encode(), clientAddress)
+            server_socket.sendto('Invalid payment amount for Payee1.'.encode(), client_address)
             continue
         if payee2 is not None and (amount_to_payee2 is None or amount_to_payee2 < 0 or amount_to_payee2 > (amount - amount_to_payee1)):
-            serverSocket.sendto('Invalid payment amount for Payee2.'.encode(), clientAddress)
+            server_socket.sendto('Invalid payment amount for Payee2.'.encode(), client_address)
             continue
 
         transaction = {
@@ -154,29 +158,30 @@ while True:
         if status == 'temporary':
             response = process_temporary_transaction(transaction)
         else:
-            response = processTransaction(transaction)
+            response = process_transaction(transaction)
 
-        serverSocket.sendto(response.encode(), clientAddress)
+        server_socket.sendto(response.encode(), client_address)
 
 
     elif command == 'TX_LIST':
         username = message_parts[1]
-        user_transactions = get_user_transactions(username)
-        response = "TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status\n"
-        response += "-" * 71 + "\n"  # Adding a line to separate header and data
-        for tx in user_transactions:
-            tx_id = str(tx['tx_id']).ljust(6)
-            payer = tx['payer'].ljust(6)
-            amount = str(tx['amount']).ljust(7)
-            payee1 = tx['payee1'].ljust(7)
-            amount_received1 = str(tx.get('payment1', '')).ljust(7)
-            payee2 = str(tx.get('payee2', '')).ljust(7)
-            amount_received2 = str(tx.get('payment2', '')).ljust(7)
-            status = str(tx['status']).ljust(8)  # Ensure status is included as an integer
-            response += f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}\n"
-        serverSocket.sendto(response.encode(), clientAddress)
-
-
-
+        user_balance, user_transactions = get_user_transactions(username)
+        if user_balance is None:
+            server_socket.sendto('User not found.'.encode(), client_address)
+        else:
+            response = f"{user_balance}BTC\n"
+            response += "TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status\n"
+            response += "-" * 71 + "\n"  # Adding a line to separate header and data
+            for tx in user_transactions:
+                tx_id = str(tx['tx_id']).ljust(6)
+                payer = tx['payer'].ljust(6)
+                amount = str(tx['amount']).ljust(7)
+                payee1 = tx['payee1'].ljust(7)
+                amount_received1 = str(tx.get('payment1', '')).ljust(7)
+                payee2 = str(tx.get('payee2', '')).ljust(7)
+                amount_received2 = str(tx.get('payment2', '')).ljust(7)
+                status = str(tx['status']).ljust(8)  # Ensure status is included as an integer
+                response += f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}\n"
+            server_socket.sendto(response.encode(), client_address)
     else:
-        serverSocket.sendto('Invalid command.'.encode(), clientAddress)
+        server_socket.sendto('Invalid command.'.encode(), client_address)
