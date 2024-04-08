@@ -32,6 +32,7 @@ def processTransaction(transaction):
     user = findUser(payer)
 
     if not user or user['balance'] < amount:
+        print(f'Received a transaction request from {payer}. Insufficient balance. Transaction rejected.')
         return f'TX {transaction["tx_id"]} rejected. Insufficient balance. Your current balance is {user["balance"]} BTC.'
 
     user['balance'] -= amount
@@ -42,6 +43,7 @@ def processTransaction(transaction):
 
     transactions.append(transaction)
 
+    print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer} and {payee1}.')
     return f'TX {transaction["tx_id"]} confirmed. Your current balance is {int(user["balance"])}BTC.'
 
 def process_temporary_transaction(transaction):
@@ -50,12 +52,14 @@ def process_temporary_transaction(transaction):
     user = findUser(payer)
 
     if not user or user['balance'] < amount:
+        print(f'Received a temporary transaction request from {payer}. Insufficient balance. Transaction rejected.')
         return f'TX {transaction["tx_id"]} rejected. Insufficient balance. Your current balance is {int(user["balance"])} BTC.'
 
     user['balance'] -= amount
 
     transactions.append(transaction)
 
+    print(f'Temporary transaction {transaction["tx_id"]} received and processed.')
     return f'TX {transaction["tx_id"]} temporary transaction received.'
 
 def get_user_transactions(username):
@@ -81,10 +85,12 @@ while True:
         user = findUser(username)
         
         if not user or user['password'] != password:
+            print(f'Authentication request received from {username}. Authentication failed.')
             serverSocket.sendto('Invalid username or password.'.encode(), clientAddress)
             continue
 
         response = f'Login successful!\nBalance: {int(user["balance"])}'
+        print(f'{username} is authenticated.')
         serverSocket.sendto(response.encode(), clientAddress)
 
     elif command == 'VALIDATE':
@@ -92,8 +98,10 @@ while True:
         amount = float(message_parts[2])
         user = findUser(username)
         if not user or user['balance'] < amount:
+            print(f'Validation request received from {username}. Transaction amount exceeds balance. Validation failed.')
             serverSocket.sendto('Transaction amount exceeds balance.'.encode(), clientAddress)
         else:
+            print(f'Validation request received from {username}. Transaction amount is valid.')
             serverSocket.sendto('Transaction amount is valid.'.encode(), clientAddress)
 
     elif command == 'TX':
@@ -160,7 +168,6 @@ while True:
             amount_received2 = str(tx.get('payment2', '')).ljust(7)
             response += f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}\n"
         serverSocket.sendto(response.encode(), clientAddress)
-
 
     else:
         serverSocket.sendto('Invalid command.'.encode(), clientAddress)

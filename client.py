@@ -44,9 +44,11 @@ def send_temporary_transaction(username, transaction):
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
     transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]}'
+    print(f'Sending temporary transaction request to server for {username}.')
     clientSocket.sendto(transaction_str.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
+    print(f'Received response from server for temporary transaction for {username}.')
     return response.decode()
 
 # authentication code, client uses UDP as per assignment requirements
@@ -54,18 +56,22 @@ def authenticate(username, password):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
+    print(f'Sending authentication request for {username}.')
     clientSocket.sendto(f'LOGIN {username} {password}'.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
+    print(f'Received response from server for authentication request for {username}.')
     return response.decode()
 
 def validate_transaction(username, amount):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
+    print(f'Sending transaction validation request for {username}.')
     clientSocket.sendto(f'VALIDATE {username} {amount}'.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
+    print(f'Received response from server for transaction validation request for {username}.')
     return response.decode()
 
 def update_transaction_status(tx_id, status):
@@ -78,9 +84,11 @@ def fetch_transactions(username):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
+    print(f'Sending transaction list request for {username}.')
     clientSocket.sendto(f'TX_LIST {username}'.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
+    print(f'Received transaction list from server for {username}.')
     return response.decode()
 
 
