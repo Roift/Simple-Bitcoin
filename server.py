@@ -1,12 +1,12 @@
 from socket import *
 
-# server configuration
+# Server configuration
 serverPort = 12000
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 serverSocket.bind(('', serverPort))
 print('The server is ready to receive.')
 
-# define list to store user information
+# Define list to store user information
 users = [
     {'username': 'A', 'password': 'A', 'balance': 10},
     {'username': 'B', 'password': 'B', 'balance': 10},
@@ -14,17 +14,17 @@ users = [
     {'username': 'D', 'password': 'D', 'balance': 10}
 ]
 
-# define a list to store confirmed transactions
+# Define a list to store confirmed transactions
 transactions = []
 
-# search for user
+# Search for user
 def findUser(username):
     for user in users:
         if user['username'] == username:
             return user
     return None
 
-# process transaction
+# Process transaction
 def processTransaction(transaction):
     payer = transaction['payer']
     amount = transaction['amount']
@@ -44,7 +44,7 @@ def processTransaction(transaction):
     transactions.append(transaction)
 
     print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer} and {payee1}.')
-    return f'TX {transaction["tx_id"]} confirmed. Your current balance is {int(user["balance"])}BTC.'
+    return f'TX {transaction["tx_id"]} confirmed. Your current balance is {int(user["balance"])} BTC.'
 
 def process_temporary_transaction(transaction):
     payer = transaction['payer']

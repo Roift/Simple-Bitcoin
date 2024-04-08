@@ -44,34 +44,30 @@ def send_temporary_transaction(username, transaction):
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
     transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]}'
-    print(f'Sending temporary transaction request to server for {username}.')
     clientSocket.sendto(transaction_str.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
-    print(f'Received response from server for temporary transaction for {username}.')
+    transaction_status = response.split()[1]  # Extracting the status from the response
+    transaction['status'] = transaction_status
     return response.decode()
 
-# authentication code, client uses UDP as per assignment requirements
+# Authentication code, client uses UDP as per assignment requirements
 def authenticate(username, password):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
-    print(f'Sending authentication request for {username}.')
     clientSocket.sendto(f'LOGIN {username} {password}'.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
-    print(f'Received response from server for authentication request for {username}.')
     return response.decode()
 
 def validate_transaction(username, amount):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
-    print(f'Sending transaction validation request for {username}.')
     clientSocket.sendto(f'VALIDATE {username} {amount}'.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
-    print(f'Received response from server for transaction validation request for {username}.')
     return response.decode()
 
 def update_transaction_status(tx_id, status):
@@ -84,148 +80,138 @@ def fetch_transactions(username):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
-    print(f'Sending transaction list request for {username}.')
     clientSocket.sendto(f'TX_LIST {username}'.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
-    print(f'Received transaction list from server for {username}.')
     return response.decode()
 
 
-# displays list of transactions for logged in user, tx = transaction
+# Displays list of transactions for logged in user
 def display_transactions(transactions):
     print("Transactions:")
     if not transactions:
         print("No transactions found!")
     else:
-        print("TX ID | Payer | Amount | Payee1 | Amount | Payee2 | Amount")
+        print("TX ID | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status")
         for tx in transactions:
-            print(f"{tx['tx_id']} | {tx['payer']} | {tx['amount']} | {tx['payee1']} | {tx['amount_received1']} | {tx.get('payee2', '')} | {tx.get('amount_received2', '')} | {tx['status']}")
+            print(f"{tx['tx_id']} | {tx['payer']} | {tx['amount']} | {tx['payee1']} | {tx['payment1']} | {tx.get('payee2', '')} | {tx.get('payment2', '')} | {tx['status']}")
 
-def update_transaction_status(tx_id, status):
-    for tx in transactions:
-        if tx['tx_id'] == tx_id:
-            tx['status'] = status
-            break
-
-# prompts username and password, then sends to server for authentication
-# once authenticated, displays login success message, balance, and tx list
 def main():
-    username = input("Enter username: ")
-    password = input("Enter password: ")
-    
-    auth_response = authenticate(username, password)
-    print("\nReceived response from server:", auth_response)
+    while True:
+        username = input("Enter username: ")
+        password = input("Enter password: ")
 
-    if "successful" in auth_response:
-        transaction_list_response = fetch_transactions(username)
-        print("\nReceived transaction list from server:")
-        print(transaction_list_response)
+        auth_response = authenticate(username, password)
 
-        while True:
-            print("\nMenu:")
-            print("1. Make a transaction")
-            print("2. Fetch and display the list of transactions")
-            print("3. Quit the program")
-            choice = input("Enter your choice: ")
+        if "successful" in auth_response:
+            print("\nLogin successful!")
+            break  # Break out of the authentication loop upon successful login
+        else:
+            print(auth_response)
+            while True:
+                choice = input("Choose an option:\n1. Retry entering username and password\n2. Quit\nChoice: ")
+                if choice == '1':
+                    break  # Break out of the retry loop to enter username and password again
+                elif choice == '2':
+                    print("Exiting program.")
+                    return  # Exit the program
+                else:
+                    print("Invalid choice. Please enter 1 or 2.")
 
-            if choice == '1':
-                print("\nTransaction Creation:")
-                while True:
-                    amount = float(input("How much do you transfer? "))
-                    validate_response = validate_transaction(username, amount)
-                    if "exceeds balance" in validate_response:
-                        print("Transaction amount exceeds your balance. Please enter a lower amount.")
-                    else:    
-                        break
+    # Fetch and display transaction list from server
+    transaction_list_response = fetch_transactions(username)
+    print("\nReceived transaction list from server:")
+    print(transaction_list_response)
 
-                payee_options = {
-                    'A': ['B', 'C', 'D'],
-                    'B': ['A', 'C', 'D'],
-                    'C': ['A', 'B', 'D'],
-                    'D': ['A', 'B', 'C']
-                }
+    while True:
+        print("\nMenu:")
+        print("1. Make a transaction")
+        print("2. Fetch and display the list of transactions")
+        print("3. Quit the program")
+        choice = input("Enter your choice: ")
 
-                print("Who will be Payee1?")
-                for index, user in enumerate(payee_options[username], start=1):
+        if choice == '1':
+            print("\nTransaction Creation:")
+            while True:
+                amount = float(input("How much do you transfer? "))
+                validate_response = validate_transaction(username, amount)
+                if "exceeds balance" in validate_response:
+                    print("Transaction amount exceeds your balance. Please enter a lower amount.")
+                else:
+                    break
+
+            payee_options = {
+                'A': ['B', 'C', 'D'],
+                'B': ['A', 'C', 'D'],
+                'C': ['A', 'B', 'D'],
+                'D': ['A', 'B', 'C']
+            }
+
+            print("Who will be Payee1?")
+            for index, user in enumerate(payee_options[username], start=1):
+                print(f"{index}. {user}")
+
+            payee1_option = int(input("Enter your choice: "))
+            payee1 = payee_options[username][payee1_option - 1]
+
+            payee_options_without_payee1 = payee_options[username][:]
+            payee_options_without_payee1.remove(payee1)
+
+            amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
+            while amount_to_payee1 > amount:
+                print("Amount exceeds total transaction amount. Please enter a lower amount.")
+                amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
+
+            amount_to_payee2 = amount - amount_to_payee1
+            payee2 = None
+
+            if amount_to_payee2 > 0:
+                print("Who will be Payee2?")
+                for index, user in enumerate(payee_options_without_payee1, start=1):
                     print(f"{index}. {user}")
 
-                payee1_option = int(input("Enter your choice: "))
-                payee1 = payee_options[username][payee1_option - 1]
+                payee2_option = int(input("Enter your choice: "))
+                payee2 = payee_options_without_payee1[payee2_option - 1]
 
-                payee_options_without_payee1 = payee_options[username][:]
-                payee_options_without_payee1.remove(payee1)
+            tx_id = generate_transaction_id(username)
 
-                amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
-                while amount_to_payee1 > amount:
-                    print("Amount exceeds total transaction amount. Please enter a lower amount.")
-                    amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
+            transaction = {
+                'tx_id': tx_id,
+                'amount': amount,
+                'payee1': payee1,
+                'payment1': amount_to_payee1,
+                'payee2': payee2,
+                'payment2': amount_to_payee2,
+                'status': STATUS_TEMPORARY  # Marking the transaction as temporary
+            }
 
-                amount_to_payee2 = amount - amount_to_payee1
-                payee2 = None
-
-                if amount_to_payee2 > 0:
-                    print("Who will be Payee2?")
-                    for index, user in enumerate(payee_options_without_payee1, start=1):
-                        print(f"{index}. {user}")
-
-                    payee2_option = int(input("Enter your choice: "))
-                    payee2 = payee_options_without_payee1[payee2_option - 1]
-
-                tx_id = generate_transaction_id(username)
-                
-                transaction = {
-                    'tx_id': tx_id,
-                    'amount': amount,
-                    'payee1': payee1,
-                    'payment1': amount_to_payee1,
-                    'payee2': payee2,
-                    'payment2': amount_to_payee2,
-                    'status': STATUS_TEMPORARY  # Marking the transaction as temporary
-                }
-
-                # Send the temporary transaction to the server for processing
-                response = send_temporary_transaction(username, transaction)
-                print("Received response from server:", response)
-                if "confirmed" in response:
-                    update_transaction_status(transaction['tx_id'], STATUS_CONFIRMED)
-                else:
-                    update_transaction_status(transaction['tx_id'], STATUS_REJECTED)
-
-                if payee2:
-                    print("\n")
-                    print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC. {transaction['payee2']} received {int(transaction['payment2'])}BTC")
-                else:
-                    print("\n")
-                    print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC.")
-
-            elif choice == '2':
-                # Fetch and display transaction list from server
-                transaction_list_response = fetch_transactions(username)
-                print("\nReceived transaction list from server:")
-                print(transaction_list_response)
-
-            elif choice == '3':
-                print("Exiting program.")
-                break
-
+            # Send the temporary transaction to the server for processing
+            response = send_temporary_transaction(username, transaction)
+            print("Received response from server:", response)
+            if "confirmed" in response:
+                update_transaction_status(transaction['tx_id'], STATUS_CONFIRMED)
             else:
-                print("Invalid choice. Please enter 1, 2, or 3.")
+                update_transaction_status(transaction['tx_id'], STATUS_REJECTED)
 
-    else:
-        print(auth_response)
-        while True:
-            choice = input("Choose an option:\n1. Enter username and password again\n2. Quit\nChoice: ")
-            if choice == '1':
-                username = input("Enter username: ")
-                password = input("Enter password: ")
-                auth_response = authenticate(username, password)
-                print("Received response from server:", auth_response)
-            elif choice == '2':
-                print("Exiting program.")
-                break
+            if payee2:
+                print("\n")
+                print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC. {transaction['payee2']} received {int(transaction['payment2'])}BTC")
             else:
-                print("Invalid choice. Please enter 1 or 2.")
+                print("\n")
+                print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC.")
+
+        elif choice == '2':
+            # Fetch and display transaction list from server
+            transaction_list_response = fetch_transactions(username)
+            print("\nReceived transaction list from server:")
+            print(transaction_list_response)
+
+        elif choice == '3':
+            print("Exiting program.")
+            break
+
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.")
 
 if __name__ == "__main__":
     main()
