@@ -7,6 +7,38 @@ STATUS_REJECTED = 3
 
 transactions = []
 
+highest_ids = {}  # Dictionary to store the highest ID for each user
+
+def get_highest_transaction_id(username):
+    highest_id = highest_ids.get(username, 0)  # Get the highest ID for the user
+    for tx in transactions:
+        if tx['payer'] == username:
+            highest_id = max(highest_id, tx['tx_id'])
+    print(f"Highest transaction ID for {username}: {highest_id}")
+    highest_ids[username] = highest_id  # Update the highest ID for the user
+    return highest_id
+
+def generate_transaction_id(username):
+    user_id_mapping = {'A': 100, 'B': 200, 'C': 300, 'D': 400}
+    highest_id = get_highest_transaction_id(username)
+    if highest_id == 0:
+        new_id = user_id_mapping[username]
+        print(f"New transaction ID for {username}: {new_id}")
+        transaction_id = new_id
+    else:
+        new_id = highest_id + 1
+        print(f"New transaction ID for {username}: {new_id}")
+        transaction_id = new_id
+
+    # Append the transaction to the transactions list
+    transactions.append({
+        'tx_id': transaction_id,
+        'payer': username,
+        'status': STATUS_TEMPORARY
+    })
+
+    return transaction_id
+
 def send_temporary_transaction(username, transaction):
     serverName = 'localhost'
     serverPort = 12000
@@ -16,7 +48,6 @@ def send_temporary_transaction(username, transaction):
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
     return response.decode()
-
 
 # authentication code, client uses UDP as per assignment requirements
 def authenticate(username, password):
@@ -42,6 +73,15 @@ def update_transaction_status(tx_id, status):
         if tx['tx_id'] == tx_id:
             tx['status'] = status
             break
+
+def fetch_transactions(username):
+    serverName = 'localhost'
+    serverPort = 12000
+    clientSocket = socket(AF_INET, SOCK_DGRAM)
+    clientSocket.sendto(f'TX_LIST {username}'.encode(), (serverName, serverPort))
+    response, _ = clientSocket.recvfrom(2048)
+    clientSocket.close()
+    return response.decode()
 
 
 # displays list of transactions for logged in user, tx = transaction
@@ -70,6 +110,10 @@ def main():
     print("\nReceived response from server:", auth_response)
 
     if "successful" in auth_response:
+        transaction_list_response = fetch_transactions(username)
+        print("\nReceived transaction list from server:")
+        print(transaction_list_response)
+
         while True:
             print("\nMenu:")
             print("1. Make a transaction")
@@ -120,7 +164,7 @@ def main():
                     payee2_option = int(input("Enter your choice: "))
                     payee2 = payee_options_without_payee1[payee2_option - 1]
 
-                tx_id = (ord(username) - 65 + 1) * 100
+                tx_id = generate_transaction_id(username)
                 
                 transaction = {
                     'tx_id': tx_id,
@@ -149,7 +193,9 @@ def main():
 
             elif choice == '2':
                 # Fetch and display transaction list from server
-                pass
+                transaction_list_response = fetch_transactions(username)
+                print("\nReceived transaction list from server:")
+                print(transaction_list_response)
 
             elif choice == '3':
                 print("Exiting program.")
