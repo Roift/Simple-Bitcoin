@@ -44,6 +44,7 @@ def processTransaction(transaction):
     transactions.append(transaction)
 
     print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer} and {payee1}.')
+    transaction['status'] = 'confirmed'
     return f'TX {transaction["tx_id"]} confirmed. Your current balance is {int(user["balance"])} BTC.'
 
 def process_temporary_transaction(transaction):
@@ -60,7 +61,9 @@ def process_temporary_transaction(transaction):
     transactions.append(transaction)
 
     print(f'Temporary transaction {transaction["tx_id"]} received and processed.')
+    transaction['status'] = 'temporary'
     return f'TX {transaction["tx_id"]} temporary transaction received.'
+
 
 def get_user_transactions(username):
     user_transactions = []
@@ -127,6 +130,7 @@ while True:
         amount_to_payee1 = float(transaction['payment1']) if 'payment1' in transaction else None
         payee2 = transaction['payee2'] if 'payee2' in transaction else None
         amount_to_payee2 = float(transaction['payment2']) if 'payment2' in transaction else None
+        status = transaction['status'] if 'status' in transaction else 'temporary'  # Set status here if not received from client
 
         if amount_to_payee1 is not None and (amount_to_payee1 < 0 or amount_to_payee1 > amount):
             serverSocket.sendto('Invalid payment amount for Payee1.'.encode(), clientAddress)
@@ -142,22 +146,24 @@ while True:
             'payee1': payee1,
             'payment1': amount_to_payee1,
             'payee2': payee2,
-            'payment2': amount_to_payee2
+            'payment2': amount_to_payee2,
+            'status': status  # Ensure status is set properly
         }
 
         # Check if the transaction is temporary
-        if 'status' in transaction and transaction['status'] == 'temporary':
+        if status == 'temporary':
             response = process_temporary_transaction(transaction)
         else:
             response = processTransaction(transaction)
 
         serverSocket.sendto(response.encode(), clientAddress)
 
+
     elif command == 'TX_LIST':
         username = message_parts[1]
         user_transactions = get_user_transactions(username)
-        response = "TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount\n"
-        response += "-" * 63 + "\n"  # Adding a line to separate header and data
+        response = "TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status\n"
+        response += "-" * 71 + "\n"  # Adding a line to separate header and data
         for tx in user_transactions:
             tx_id = str(tx['tx_id']).ljust(6)
             payer = tx['payer'].ljust(6)
@@ -166,8 +172,11 @@ while True:
             amount_received1 = str(tx.get('payment1', '')).ljust(7)
             payee2 = str(tx.get('payee2', '')).ljust(7)
             amount_received2 = str(tx.get('payment2', '')).ljust(7)
-            response += f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}\n"
+            status = str(tx['status']).ljust(8)  # Ensure status is included as an integer
+            response += f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}\n"
         serverSocket.sendto(response.encode(), clientAddress)
+
+
 
     else:
         serverSocket.sendto('Invalid command.'.encode(), clientAddress)

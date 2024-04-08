@@ -43,12 +43,16 @@ def send_temporary_transaction(username, transaction):
     serverName = 'localhost'
     serverPort = 12000
     clientSocket = socket(AF_INET, SOCK_DGRAM)
-    transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]}'
+    transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]} status={transaction["status"]}'  # Include status here
     clientSocket.sendto(transaction_str.encode(), (serverName, serverPort))
     response, _ = clientSocket.recvfrom(2048)
     clientSocket.close()
-    transaction_status = response.split()[1]  # Extracting the status from the response
-    transaction['status'] = transaction_status
+    response_parts = response.decode().split()
+    if len(response_parts) >= 2 and response_parts[0] == 'TX' and response_parts[1] in ['confirmed.', 'rejected.']:
+        if response_parts[1] == 'confirmed.':
+            transaction['status'] = 'confirmed'
+        else:
+            transaction['status'] = 'rejected'
     return response.decode()
 
 # Authentication code, client uses UDP as per assignment requirements
@@ -85,7 +89,6 @@ def fetch_transactions(username):
     clientSocket.close()
     return response.decode()
 
-
 # Displays list of transactions for logged in user
 def display_transactions(transactions):
     print("Transactions:")
@@ -94,7 +97,15 @@ def display_transactions(transactions):
     else:
         print("TX ID | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status")
         for tx in transactions:
-            print(f"{tx['tx_id']} | {tx['payer']} | {tx['amount']} | {tx['payee1']} | {tx['payment1']} | {tx.get('payee2', '')} | {tx.get('payment2', '')} | {tx['status']}")
+            status = ''
+            if tx['status'] == STATUS_TEMPORARY:
+                status = 'temporary'
+            elif tx['status'] == STATUS_CONFIRMED:
+                status = 'confirmed'
+            elif tx['status'] == STATUS_REJECTED:
+                status = 'rejected'
+            print(f"{tx['tx_id']} | {tx['payer']} | {tx['amount']} | {tx['payee1']} | {tx['payment1']} | {tx.get('payee2', '')} | {tx.get('payment2', '')} | {status}")
+
 
 def main():
     while True:
