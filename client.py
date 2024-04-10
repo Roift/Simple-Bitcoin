@@ -182,7 +182,7 @@ def main():
             payee_options_without_payee1 = payee_options[username][:]
             payee_options_without_payee1.remove(payee1)
 
-            amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
+            amount_to_payee1 = float(input(f"How much do you want to send to {payee1}? "))
             while amount_to_payee1 > amount:
                 print("Amount exceeds total transaction amount. Please enter a lower amount.")
                 amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
