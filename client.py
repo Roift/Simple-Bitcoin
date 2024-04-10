@@ -129,7 +129,6 @@ def update_or_add_transaction(transaction, payer):
             return
     transactions.append(transaction)
 
-
 def main():
     while True:
         username = input("Enter username: ")
@@ -184,7 +183,13 @@ def main():
             payee_options_without_payee1 = payee_options[username][:]
             payee_options_without_payee1.remove(payee1)
 
-            amount_to_payee1 = float(input(f"How much do you want to send to {payee1}? "))
+            while True:
+                amount_to_payee1 = float(input(f"How much do you want to send to {payee1}? "))
+                if amount_to_payee1 <= amount:
+                    break
+                else:
+                    print("The amount cannot exceed the total transaction amount.")
+
             amount_to_payee2 = amount - amount_to_payee1
             payee2 = None
 
@@ -247,6 +252,7 @@ def main():
             break
         else:
             print("Invalid choice. Please enter 1, 2, or 3.")
+
             
 if __name__ == "__main__":
     main()
