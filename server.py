@@ -164,6 +164,7 @@ while True:
         else:
             response = process_transaction(transaction)
 
+        print(f'Sending response to client: {response}')
         server_socket.sendto(response.encode(), client_address)
 
 
@@ -186,6 +187,7 @@ while True:
                 amount_received2 = str(tx.get('payment2', '')).ljust(7)
                 status = str(tx['status']).ljust(8)  # Ensure status is included as an integer
                 response += f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}\n"
+            print(f'Sending transaction list response to client for user {username}.')
             server_socket.sendto(response.encode(), client_address)
     else:
         server_socket.sendto('Invalid command.'.encode(), client_address)
