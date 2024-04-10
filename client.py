@@ -223,29 +223,10 @@ def main():
             update_or_add_transaction(transaction, username)
 
         elif choice == '2':
-            balance, transaction_list_response = fetch_transactions(username)
-
-            print("TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status")
-            print("-" * 68)
-            for tx in transactions:
-                status = ''
-                if tx['status'] == STATUS_TEMPORARY:
-                    status = 'temporary'
-                elif tx['status'] == STATUS_CONFIRMED:
-                    status = 'confirmed'
-                elif tx['status'] == STATUS_REJECTED:
-                    status = 'rejected'
-
-                tx_id = str(tx['tx_id']).ljust(6)
-                payer = tx['payer'].ljust(6) if 'payer' in tx else ''.ljust(6)
-                amount = str(tx.get('amount', '')).ljust(7)
-                payee1 = tx.get('payee1', '').ljust(7)
-                amount_received1 = str(tx.get('payment1', '')).ljust(7)
-                payee2 = str(tx.get('payee2', '')).ljust(7)
-                amount_received2 = str(tx.get('payment2', '')).ljust(7)
-                status = status.ljust(8)
-
-                print(f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}")
+                balance, transaction_list_response = fetch_transactions(username)
+                print(f"\nBalance: {balance}")
+                print("\nReceived transaction list from server:")
+                print(transaction_list_response)
 
         elif choice == '3':
             print("Exiting program.")
