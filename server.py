@@ -37,15 +37,25 @@ def process_transaction(transaction):
 
     user['balance'] -= amount
 
+    # Update balance for Payee1
     payee = find_user(payee1)
     if payee:
-        payee['balance'] += amount
+        payee['balance'] += float(transaction['payment1'])
+
+    # Check if there is a Payee2 and update balance
+    if 'payee2' in transaction and 'payment2' in transaction:
+        payee2 = transaction['payee2']
+        amount_to_payee2 = float(transaction['payment2'])
+        payee = find_user(payee2)
+        if payee:
+            payee['balance'] += amount_to_payee2
 
     transactions.append(transaction)
 
-    print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer} and {payee1}.')
+    print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer}, {payee1}, and {payee2 if "payee2" in transaction else ""}.')
     transaction['status'] = 'confirmed'
     return f'TX {transaction["tx_id"]} confirmed. Your current balance is {int(user["balance"])} BTC.'
+
 
 def process_temporary_transaction(transaction):
     payer = transaction['payer']
