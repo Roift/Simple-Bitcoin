@@ -37,25 +37,15 @@ def process_transaction(transaction):
 
     user['balance'] -= amount
 
-    # Update balance for Payee1
     payee = find_user(payee1)
     if payee:
-        payee['balance'] += float(transaction['payment1'])
-
-    # Check if there is a Payee2 and update balance
-    if 'payee2' in transaction and 'payment2' in transaction:
-        payee2 = transaction['payee2']
-        amount_to_payee2 = float(transaction['payment2'])
-        payee = find_user(payee2)
-        if payee:
-            payee['balance'] += amount_to_payee2
+        payee['balance'] += amount
 
     transactions.append(transaction)
 
-    print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer}, {payee1}, and {payee2 if "payee2" in transaction else ""}.')
+    print(f'Transaction {transaction["tx_id"]} confirmed. Balance updated for {payer} and {payee1}.')
     transaction['status'] = 'confirmed'
     return f'TX {transaction["tx_id"]} confirmed. Your current balance is {int(user["balance"])} BTC.'
-
 
 def process_temporary_transaction(transaction):
     payer = transaction['payer']
@@ -70,8 +60,12 @@ def process_temporary_transaction(transaction):
 
     transactions.append(transaction)
 
-    print(f'Temporary transaction {transaction["tx_id"]} received and processed.')
-    transaction['status'] = 'temporary'
+    if user['balance'] < amount:
+        print(f'Transaction {transaction["tx_id"]} rejected due to insufficient balance.')
+        transaction['status'] = 'rejected'
+    else:
+        transaction['status'] = 'temporary'
+
     return f'TX {transaction["tx_id"]} temporary transaction received.'
 
 def get_user_transactions(username):

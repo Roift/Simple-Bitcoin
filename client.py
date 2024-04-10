@@ -43,17 +43,18 @@ def send_temporary_transaction(username, transaction):
     server_name = 'localhost'
     server_port = 12000
     client_socket = socket(AF_INET, SOCK_DGRAM)
-    transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]} status={transaction["status"]}'  # Include status here
+    transaction_str = f'TX tx_id={transaction["tx_id"]} amount={transaction["amount"]} payer={username} payee1={transaction["payee1"]} payment1={transaction["payment1"]} payee2={transaction["payee2"]} payment2={transaction["payment2"]} status={transaction["status"]}'
     client_socket.sendto(transaction_str.encode(), (server_name, server_port))
     response, _ = client_socket.recvfrom(2048)
     client_socket.close()
     response_parts = response.decode().split()
-    if len(response_parts) >= 2 and response_parts[0] == 'TX' and response_parts[1] in ['confirmed.', 'rejected.']:
+    if len(response_parts) >= 2 and response_parts[0] == 'TX':
         if response_parts[1] == 'confirmed.':
             transaction['status'] = 'confirmed'
-        else:
+        elif response_parts[1] == 'rejected.':
             transaction['status'] = 'rejected'
     return response.decode()
+
 
 # Authentication code, client uses UDP as per assignment requirements
 def authenticate(username, password):
@@ -157,13 +158,7 @@ def main():
 
         if choice == '1':
             print("\nTransaction Creation:")
-            while True:
-                amount = float(input("How much do you transfer? "))
-                validate_response = validate_transaction(username, amount)
-                if "exceeds balance" in validate_response:
-                    print("Transaction amount exceeds your balance. Please enter a lower amount.")
-                else:
-                    break
+            amount = float(input("How much do you transfer? "))
 
             payee_options = {
                 'A': ['B', 'C', 'D'],
@@ -183,10 +178,6 @@ def main():
             payee_options_without_payee1.remove(payee1)
 
             amount_to_payee1 = float(input(f"How much do you want to send to {payee1}? "))
-            while amount_to_payee1 > amount:
-                print("Amount exceeds total transaction amount. Please enter a lower amount.")
-                amount_to_payee1 = float(input("How much do you want to send to Payee1? "))
-
             amount_to_payee2 = amount - amount_to_payee1
             payee2 = None
 
@@ -218,12 +209,17 @@ def main():
             else:
                 update_transaction_status(transaction['tx_id'], STATUS_REJECTED)
 
-            if payee2:
-                print("\n")
-                print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC. {transaction['payee2']} received {int(transaction['payment2'])}BTC")
+            if "confirmed" in response:
+                update_transaction_status(transaction['tx_id'], STATUS_CONFIRMED)
+                if payee2:
+                    print("\n")
+                    print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC. {transaction['payee2']} received {int(transaction['payment2'])}BTC")
+                else:
+                    print("\n")
+                    print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC.")
             else:
-                print("\n")
-                print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC.")
+                update_transaction_status(transaction['tx_id'], STATUS_REJECTED)
+
 
         elif choice == '2':
             # Fetching and displaying balance and transaction list
