@@ -111,15 +111,24 @@ def display_transactions(transactions):
                 status = 'rejected'
 
             tx_id = str(tx['tx_id']).ljust(6)
-            payer = tx['payer'].ljust(6)
-            amount = str(tx['amount']).ljust(7)
-            payee1 = tx['payee1'].ljust(7)
+            payer = str(tx.get('payer', '')).ljust(6)  # Use .get() to handle missing 'payer' key
+            amount = str(tx.get('amount', '')).ljust(7)  # Use .get() to handle missing 'amount' key
+            payee1 = str(tx.get('payee1', '')).ljust(7)  # Use .get() to handle missing 'payee1' key
             amount_received1 = str(tx.get('payment1', '')).ljust(7)
             payee2 = str(tx.get('payee2', '')).ljust(7)
             amount_received2 = str(tx.get('payment2', '')).ljust(7)
             status = status.ljust(8)  # Ensure status is included as an integer
 
             print(f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}")
+
+def update_or_add_transaction(transaction, payer):
+    transaction['payer'] = payer
+    for idx, tx in enumerate(transactions):
+        if tx['tx_id'] == transaction['tx_id']:
+            transactions[idx] = transaction
+            return
+    transactions.append(transaction)
+
 
 def main():
     while True:
@@ -130,20 +139,19 @@ def main():
 
         if "successful" in auth_response:
             print("\nLogin successful!")
-            break  # Break out of the authentication loop upon successful login
+            break
         else:
             print(auth_response)
             while True:
                 choice = input("Choose an option:\n1. Retry entering username and password\n2. Quit\nChoice: ")
                 if choice == '1':
-                    break  # Break out of the retry loop to enter username and password again
+                    break
                 elif choice == '2':
                     print("Exiting program.")
-                    return  # Exit the program
+                    return
                 else:
                     print("Invalid choice. Please enter 1 or 2.")
 
-    # Fetch and display transaction list from server
     balance, transaction_list_response = fetch_transactions(username)
     print(f"\nBalance: {balance}")
     print("\nReceived transaction list from server:")
@@ -159,7 +167,6 @@ def main():
         if choice == '1':
             print("\nTransaction Creation:")
             amount = float(input("How much do you transfer? "))
-
             payee_options = {
                 'A': ['B', 'C', 'D'],
                 'B': ['A', 'C', 'D'],
@@ -198,40 +205,49 @@ def main():
                 'payment1': amount_to_payee1,
                 'payee2': payee2,
                 'payment2': amount_to_payee2,
-                'status': STATUS_TEMPORARY  # Marking the transaction as temporary
+                'status': STATUS_TEMPORARY
             }
 
-            # Send the temporary transaction to the server for processing
             response = send_temporary_transaction(username, transaction)
             print("Received response from server:", response)
             if "confirmed" in response:
-                update_transaction_status(transaction['tx_id'], STATUS_CONFIRMED)
-            else:
-                update_transaction_status(transaction['tx_id'], STATUS_REJECTED)
+                transaction['status'] = STATUS_CONFIRMED
+            elif "rejected" in response:
+                transaction['status'] = STATUS_REJECTED
 
-            if "confirmed" in response:
-                update_transaction_status(transaction['tx_id'], STATUS_CONFIRMED)
-                if payee2:
-                    print("\n")
-                    print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC. {transaction['payee2']} received {int(transaction['payment2'])}BTC")
-                else:
-                    print("\n")
-                    print(f"{transaction['tx_id']}: {username} transferred {int(transaction['amount'])}BTC. {transaction['payee1']} received {int(transaction['payment1'])}BTC.")
-            else:
-                update_transaction_status(transaction['tx_id'], STATUS_REJECTED)
-
+            update_or_add_transaction(transaction, username)
 
         elif choice == '2':
-            # Fetching and displaying balance and transaction list
             balance, transaction_list_response = fetch_transactions(username)
-            print(f"\nBalance: {balance}")
-            print("\nReceived transaction list from server:")
-            print(transaction_list_response)
+
+            print("TX ID  | Payer | Amount | Payee1 | Amount | Payee2 | Amount | Status")
+            print("-" * 68)
+            for tx in transactions:
+                status = ''
+                if tx['status'] == STATUS_TEMPORARY:
+                    status = 'temporary'
+                elif tx['status'] == STATUS_CONFIRMED:
+                    status = 'confirmed'
+                elif tx['status'] == STATUS_REJECTED:
+                    status = 'rejected'
+
+                tx_id = str(tx['tx_id']).ljust(6)
+                payer = tx['payer'].ljust(6) if 'payer' in tx else ''.ljust(6)
+                amount = str(tx.get('amount', '')).ljust(7)
+                payee1 = tx.get('payee1', '').ljust(7)
+                amount_received1 = str(tx.get('payment1', '')).ljust(7)
+                payee2 = str(tx.get('payee2', '')).ljust(7)
+                amount_received2 = str(tx.get('payment2', '')).ljust(7)
+                status = status.ljust(8)
+
+                print(f"{tx_id}| {payer}| {amount}| {payee1}| {amount_received1}| {payee2}| {amount_received2}| {status}")
+
         elif choice == '3':
             print("Exiting program.")
             break
         else:
             print("Invalid choice. Please enter 1, 2, or 3.")
-
+            
 if __name__ == "__main__":
     main()
+
